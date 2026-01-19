@@ -1,5 +1,6 @@
 import streamlit as st
 import plotly.express as px
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from data_utils import load_all_data
 from chart_factory import styled_fig
 from config import apply_theme, COLORS
