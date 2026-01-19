@@ -64,19 +64,41 @@ def apply_filters(tables, countries, platforms, versions):
     return filtered_tables
 
 def get_retention_matrix(df_sessions, df_users):
-    """Tính toán ma trận Cohort Retention chuẩn mẫu."""
-    if df_sessions.empty or df_users.empty:
+    """Xây dựng ma trận Cohort Retention D0-D7 với ép kiểu dữ liệu an toàn."""
+    if df_sessions.empty or df_users.empty: 
         return pd.DataFrame(), pd.Series()
-        
-    df = pd.merge(df_sessions, df_users[['user_id', 'install_date']], on='user_id')
-    df['day_diff'] = (df['start_time'].dt.date - df['install_date'].dt.date).dt.days
     
-    # Lấy dữ liệu D0-D30
+    # 1. Tạo bản sao để tránh cảnh báo SettingWithCopy
+    df_u = df_users[['user_id', 'install_date']].copy()
+    df_s = df_sessions[['user_id', 'start_time']].copy()
+    
+    # 2. ÉP KIỂU LẦN CUỐI (Bắt buộc để fix lỗi .dt accessor)
+    df_u['install_date'] = pd.to_datetime(df_u['install_date'], errors='coerce')
+    df_s['start_time'] = pd.to_datetime(df_s['start_time'], errors='coerce')
+    
+    # 3. Loại bỏ dòng rỗng sau khi ép kiểu
+    df_u = df_u.dropna(subset=['install_date'])
+    df_s = df_s.dropna(subset=['start_time'])
+    
+    # 4. Merge dữ liệu
+    df = pd.merge(df_s, df_u, on='user_id')
+    
+    # 5. Tính toán Day Diff
+    # Sử dụng .dt.date để chuẩn hóa về ngày, sau đó trừ nhau
+    df['day_diff'] = (df['start_time'].dt.date - df['install_date'].dt.date).apply(lambda x: x.days)
+    
+    # 6. Chỉ lấy từ Day 0 đến Day 30
     df = df[(df['day_diff'] >= 0) & (df['day_diff'] <= 30)]
     
-    pivot = df.pivot_table(index='install_date', columns='day_diff', values='user_id', aggfunc='nunique')
-    cohort_size = pivot.iloc[:, 0]
-    retention_matrix = pivot.divide(cohort_size, axis=0)
+    # 7. Tạo bảng Pivot
+    cohort_pivot = df.pivot_table(index='install_date', columns='day_diff', values='user_id', aggfunc='nunique')
+    
+    if cohort_pivot.empty:
+        return pd.DataFrame(), pd.Series()
+
+    # 8. Tính tỷ lệ % Retention
+    cohort_size = cohort_pivot.iloc[:, 0]
+    retention_matrix = cohort_pivot.divide(cohort_size, axis=0)
     
     return retention_matrix, cohort_size
 
