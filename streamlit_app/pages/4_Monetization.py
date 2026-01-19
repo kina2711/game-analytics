@@ -1,46 +1,36 @@
+import sys
+from pathlib import Path
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from data_utils import load_all_data
-from chart_factory import styled_fig, draw_metric
-from config import apply_theme, COLORS
 
-apply_theme()
-data = load_all_data()
-df_m = data['fact_monetization']
-df_u = data['dim_users']
+utils_path = str(Path(__file__).resolve().parents[1])
+if utils_path not in sys.path: sys.path.insert(0, utils_path)
 
-st.title("Monetization Deep-dive")
+try:
+    import data_utils, config, chart_factory
+except ImportError: st.stop()
 
-# KPI Cards
-paying_users = df_m['user_id'].nunique()
-total_users = df_u['user_id'].nunique()
-conv_rate = (paying_users / total_users) * 100 if total_users > 0 else 0
-total_rev = df_m['amount_usd'].sum()
-arppu = total_rev / paying_users if paying_users > 0 else 0
+st.set_page_config(page_title="Monetization", layout="wide")
+config.apply_theme()
 
-c1, c2, c3 = st.columns(3)
-with c1: draw_metric("ARPPU", f"${arppu:.2f}", "Whale-driven")
-with c2: draw_metric("Conversion Rate", f"{conv_rate:.2f}%")
-with c3:
-    ad_rev = df_m[df_m['rev_type'] == 'Ads']['amount_usd'].sum()
-    draw_metric("Total Ad Revenue", f"${ad_rev:,.0f}")
+raw_data = data_utils.load_all_data()
+if not raw_data['dim_users'].empty:
+    st.sidebar.header("Filters")
+    sc = st.sidebar.multiselect("Country", raw_data['dim_users']['country'].unique(), raw_data['dim_users']['country'].unique()[:5])
+    data = data_utils.apply_filters(raw_data, sc, ["iOS", "Android"], None)
 
-# Visual 1: Revenue by Ad Format (Donut Chart)
-ad_data = df_m[df_m['rev_type'] == 'Ads'].groupby('ad_format')['amount_usd'].sum().reset_index()
-fig_donut = px.pie(ad_data, values='amount_usd', names='ad_format', hole=.5,
-                   title="Revenue by Ad Format", color_discrete_sequence=px.colors.sequential.RdBu)
-st.plotly_chart(styled_fig(fig_donut), use_container_width=True)
+    st.title("Monetization Analytics")
+    
+    c1, c2, c3 = st.columns(3)
+    p_users = data['fact_monetization'][data['fact_monetization']['rev_type'] == 'IAP']['user_id'].nunique()
+    total_rev = data['fact_monetization']['amount_usd'].sum()
+    
+    with c1: chart_factory.draw_metric("ARPPU", f"${total_rev/p_users:.2f}" if p_users > 0 else "$0")
+    with c2: chart_factory.draw_metric("Conversion Rate", f"{(p_users/len(data['dim_users'])*100):.1f}%")
+    with c3: chart_factory.draw_metric("Total Ad Revenue", f"${data['fact_monetization'][data['fact_monetization']['rev_type'] == 'Ads']['amount_usd'].sum():,.0f}")
 
-# Visual 2: Cumulative Revenue (Waterfall)
-daily_rev = df_m.groupby(df_m['timestamp'].dt.date)['amount_usd'].sum().reset_index()
-daily_rev['cumulative'] = daily_rev['amount_usd'].cumsum()
-fig_waterfall = go.Figure(go.Waterfall(
-    name = "Revenue", orientation = "v",
-    x = daily_rev['timestamp'],
-    y = daily_rev['amount_usd'],
-    connector = {"line":{"color":"rgb(63, 63, 63)"}},
-))
-fig_waterfall.update_layout(title="Cumulative Monthly Revenue")
-st.plotly_chart(styled_fig(fig_waterfall), use_container_width=True)
+    st.subheader("Revenue by Ad Format")
+    ad_df = data['fact_monetization'][data['fact_monetization']['rev_type'] == 'Ads'].groupby('ad_format')['amount_usd'].sum().reset_index()
+    fig = px.pie(ad_df, values='amount_usd', names='ad_format', hole=0.5, color_discrete_sequence=px.colors.sequential.RdPu)
+    st.plotly_chart(chart_factory.styled_fig(fig), use_container_width=True)
