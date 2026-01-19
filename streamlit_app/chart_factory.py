@@ -3,7 +3,6 @@ import plotly.graph_objects as go
 from config import COLORS
 
 def plot_cohort_heatmap(matrix):
-    """Vẽ Heatmap Retention với màu sắc Cyberpunk."""
     # Chỉ lấy D0 đến D7 để hiển thị rõ nét trên Dashboard
     plot_df = matrix.iloc[:, :8]
 
