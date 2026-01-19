@@ -1,30 +1,41 @@
 import streamlit as st
+import pandas as pd
+import plotly.express as px
+import config
 
-COLORS = {
-    "primary": "#00d4ff",   # Neon Blue
-    "secondary": "#ff007a", # Electric Pink
-    "success": "#39ff14",   # Cyber Green
-    "warning": "#fabb3d",   # Amber
-    "danger": "#ff4b4b",    # Red
-    "bg_dark": "#0e1117",
-    "card_bg": "rgba(255, 255, 255, 0.05)",
-    "grid": "rgba(255, 255, 255, 0.1)"
-}
-
-def apply_theme():
+def draw_metric(label, value, sub_text=""):
     st.markdown(f"""
-    <style>
-        .stApp {{ background-color: {COLORS['bg_dark']}; color: white; }}
-        [data-testid="stSidebar"] {{ background-color: #161b22; border-right: 1px solid {COLORS['grid']}; }}
-        .glass-card {{
-            background: {COLORS['card_bg']};
-            padding: 20px;
-            border-radius: 15px;
-            border: 1px solid {COLORS['grid']};
-            border-left: 5px solid {COLORS['primary']};
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
-            margin-bottom: 20px;
-        }}
-        h2, h3, p {{ color: white !important; }}
-    </style>
+        <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 10px;">
+            <p style="color: #aaa; margin: 0; font-size: 14px;">{label}</p>
+            <h2 style="margin: 5px 0; color: #00d4ff; font-size: 32px;">{value}</h2>
+            <p style="color: #555; margin: 0; font-size: 12px;">{sub_text}</p>
+        </div>
     """, unsafe_allow_html=True)
+
+def display_cohort_style(df):
+    """Vẽ bảng Cohort có màu sắc gradient đúng mẫu."""
+    # Chỉ định các cột Day 0 - Day 7
+    days = [i for i in range(8) if i in df.columns]
+    
+    # Định dạng hiển thị
+    format_dict = {day: '{:.1%}' for day in days}
+    format_dict['Total Users'] = '{:,}'
+
+    # Tạo style màu xanh
+    styled_df = df.style.background_gradient(
+        cmap='Blues', 
+        subset=days,
+        vmin=0, vmax=0.4
+    ).format(format_dict)
+
+    st.write(styled_df)
+
+def styled_fig(fig):
+    """Chuẩn hóa biểu đồ Plotly sang Dark Mode."""
+    fig.update_layout(
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font_color="white",
+        template="plotly_dark"
+    )
+    return fig
