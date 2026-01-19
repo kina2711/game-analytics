@@ -1,4 +1,5 @@
 import streamlit as st
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from data_utils import load_all_data, get_retention_matrix
 from chart_factory import plot_cohort_heatmap, styled_fig
 import plotly.express as px
