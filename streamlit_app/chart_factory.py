@@ -57,21 +57,33 @@ def plot_gauge(value, title, target=0.2):
 
 def plot_cohort_heatmap(matrix):
     """
-    Vẽ ma trận Cohort Retention đúng mẫu chuyên nghiệp.
+    Vẽ ma trận Cohort Retention linh hoạt theo số lượng cột thực tế.
     """
-    # Lấy 8 cột đầu tiên (Day 0 đến Day 7)
+    if matrix.empty:
+        return go.Figure()
+
+    # 1. Lấy tối đa 8 cột đầu tiên (hoặc ít hơn nếu data chưa đủ 8 ngày)
     plot_df = matrix.iloc[:, :8]
     
+    # 2. Đếm số lượng cột thực tế đang có
+    actual_col_count = plot_df.shape[1]
+    
+    # 3. Tạo nhãn tương ứng với số cột thực tế
+    x_labels = [f"Day {i}" for i in range(actual_col_count)]
+    
+    # 4. Vẽ biểu đồ
     fig = px.imshow(
         plot_df,
-        text_auto=".1%",
+        text_auto=".1%", # Hiển thị tỷ lệ %
         color_continuous_scale=[[0, "#161b22"], [1, config.COLORS['primary']]],
         labels=dict(x="Day Since Install", y="Cohort Date", color="Retention %"),
-        x=[f"Day {i}" for i in range(8)]
+        x=x_labels # Sử dụng danh sách nhãn linh hoạt
     )
     
     fig.update_layout(
-        title="D1 - D7 User Retention Cohort Heatmap",
-        coloraxis_showscale=False
+        title="User Retention Cohort Heatmap (D0 - Dn)",
+        coloraxis_showscale=False,
+        xaxis_nticks=actual_col_count # Đảm bảo vạch chia khớp với số cột
     )
+    
     return styled_fig(fig)
