@@ -1,44 +1,33 @@
+import sys
+from pathlib import Path
 import streamlit as st
 import plotly.express as px
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from data_utils import load_all_data
-from config import apply_theme, COLORS
 
-apply_theme()
-data = load_all_data()
+utils_path = str(Path(__file__).resolve().parents[1])
+if utils_path not in sys.path: sys.path.insert(0, utils_path)
 
-st.title("Predictive & Diagnostic Insights")
+try:
+    import data_utils, config, chart_factory
+except ImportError: st.stop()
 
-# SECTION 1: DIAGNOSTIC (Why did it happen?)
-st.header("Diagnostic: Churn Root Cause")
-col1, col2 = st.columns(2)
+st.set_page_config(page_title="Predictive", layout="wide")
+config.apply_theme()
 
-with col1:
-    st.write("### Level 3 Drop-off Analysis")
-    df_fail = data['fact_gameplay_events'][data['fact_gameplay_events']['level_id'] == 3]
-    fail_reasons = df_fail['fail_reason'].value_counts().reset_index()
-    fig = px.pie(fail_reasons, values='count', names='fail_reason', title="Fail Reasons at Level 3", hole=0.4)
-    st.plotly_chart(fig, use_container_width=True)
+raw_data = data_utils.load_all_data()
+if not raw_data['dim_users'].empty:
+    st.title("Predictive & Diagnostic Insights")
 
-with col2:
-    st.info("""
-    **Diagnostic Conclusion:**
-    80% người dùng rời bỏ tại Level 3 do 'Out of time'. 
-    Kết hợp với `difficulty_index`, chúng ta thấy độ khó tăng vọt 50% so với Level 2.
-    => **Action:** Cần nới lỏng giới hạn thời gian ở Stage này.
-    """)
+    st.header("Diagnostic: Why Level 3 Fails?")
+    l3_data = raw_data['fact_gameplay_events'][raw_data['fact_gameplay_events']['level_id'] == 3]
+    fail_df = l3_data[l3_data['event_name'] == 'level_fail']['fail_reason'].value_counts().reset_index()
+    fig = px.pie(fail_df, values='count', names='fail_reason', hole=0.4, title="Level 3 Failure Reasons")
+    st.plotly_chart(chart_factory.styled_fig(fig), use_container_width=True)
 
-# SECTION 2: PREDICTIVE (What will happen?)
-st.header("Predictive: User Churn Forecast")
-st.write("Sử dụng mô hình Random Forest để dự báo xác suất rời bỏ dựa trên hiệu suất máy.")
-
-# Giả lập dữ liệu dự báo từ mô hình
-predict_data = data['fact_technical_health'].groupby('user_id').agg({'is_crash':'sum', 'fps_avg':'mean'}).reset_index()
-predict_data['churn_prob'] = (predict_data['is_crash'] * 0.4) + ( (60 - predict_data['fps_avg']) * 0.01 )
-
-fig_churn = px.scatter(predict_data, x="fps_avg", y="churn_prob", color="is_crash",
-                     title="Churn Probability vs. Technical Performance",
-                     labels={'churn_prob': 'Xác suất Churn (%)', 'fps_avg': 'FPS trung bình'})
-st.plotly_chart(fig_churn, use_container_width=True)
-
-st.warning("**Predictive Alert:** Những user gặp > 2 lần crash trên thiết bị Low-end có 85% xác suất sẽ Churn trong 48h tới.")
+    st.divider()
+    st.header("Predictive: Churn Risk Forecast")
+    # Giả lập churn dựa trên crash & fps
+    risk_df = raw_data['fact_technical_health'].groupby('user_id').agg({'is_crash':'sum', 'fps_avg':'mean'}).reset_index()
+    risk_df['churn_prob'] = risk_df['is_crash'].apply(lambda x: 0.8 if x > 2 else 0.1)
+    
+    fig_s = px.scatter(risk_df, x="fps_avg", y="churn_prob", color="is_crash", title="Churn Probability vs Technical Performance")
+    st.plotly_chart(chart_factory.styled_fig(fig_s), use_container_width=True)
