@@ -44,7 +44,7 @@ with c1:
     - **Language:** Python (Pandas, Numpy)
     - **Visualization:** Streamlit, Plotly
     - **Machine Learning:** Scikit-learn (Joblib for Model Deployment)
-    - **Database:** Supabase integration
+    - **Database:** Bigquery, PostgreSQL
     """)
 
 with c2:
