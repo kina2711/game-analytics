@@ -1,30 +1,33 @@
+import sys
+from pathlib import Path
 import streamlit as st
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from data_utils import load_all_data, get_retention_matrix
-from chart_factory import plot_cohort_heatmap, styled_fig
 import plotly.express as px
-from config import apply_theme
 
-apply_theme()
-st.title("Engagement & Retention Analytics")
+utils_path = str(Path(__file__).resolve().parents[1])
+if utils_path not in sys.path: sys.path.insert(0, utils_path)
 
-data = load_all_data()
+try:
+    import data_utils, config, chart_factory
+except ImportError: st.stop()
 
-# Phần 1: Ma trận Cohort
-st.subheader("User Retention Matrix (Cohort Analysis)")
-matrix, sizes = get_retention_matrix(data['fact_sessions'], data['dim_users'])
+st.set_page_config(page_title="Retention", layout="wide")
+config.apply_theme()
 
-if not matrix.empty:
-    st.plotly_chart(plot_cohort_heatmap(matrix), use_container_width=True)
-    st.info("Tip: Hàng đầu tiên thể hiện nhóm user cũ nhất, cột Day 1 là tỷ lệ quay lại sau 24h.")
-else:
-    st.warning("Chưa có đủ dữ liệu để tạo ma trận Cohort.")
+raw_data = data_utils.load_all_data()
+if not raw_data['dim_users'].empty:
+    st.sidebar.header("Filters")
+    sc = st.sidebar.multiselect("Country", raw_data['dim_users']['country'].unique(), raw_data['dim_users']['country'].unique()[:5])
+    data = data_utils.apply_filters(raw_data, sc, ["iOS", "Android"], None)
 
-# Phần 2: Phễu Gameplay
-st.divider()
-st.subheader("Level Completion Funnel")
-df_g = data['fact_gameplay_events']
-funnel = df_g[df_g['event_name'] == 'level_complete'].groupby('level_id')['user_id'].nunique().reset_index()
+    st.title("Engagement & Retention")
+    
+    st.subheader("User Retention Heatmap (Cohort Analysis)")
+    matrix, sizes = data_utils.get_retention_matrix(data['fact_sessions'], data['dim_users'])
+    if not matrix.empty:
+        st.plotly_chart(chart_factory.plot_cohort_heatmap(matrix), use_container_width=True)
 
-fig_f = px.funnel(funnel, x='user_id', y='level_id', title="Drop-off từ Level 1 đến 10")
-st.plotly_chart(styled_fig(fig_f), use_container_width=True)
+    st.divider()
+    st.subheader("Gameplay Funnel (Level 1-10)")
+    funnel = data['fact_gameplay_events'][data['fact_gameplay_events']['event_name'] == 'level_complete'].groupby('level_id')['user_id'].nunique().reset_index()
+    fig_f = px.funnel(funnel, x='user_id', y='level_id', color_discrete_sequence=[config.COLORS['primary']])
+    st.plotly_chart(chart_factory.styled_fig(fig_f), use_container_width=True)
