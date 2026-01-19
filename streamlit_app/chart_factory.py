@@ -1,89 +1,49 @@
-import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
+import pandas as pd
+import plotly.express as px
 import config
 
-def draw_metric(label, value, delta=None):
-    """
-    Tạo card chỉ số với phong cách Glassmorphism.
-    Lưu ý: CSS '.glass-card' phải được định nghĩa trong config.apply_theme().
-    """
-    delta_html = f"<p style='color:{config.COLORS['success']};font-size:14px;margin:0'>↑ {delta}</p>" if delta else ""
+def draw_metric(label, value, sub_text=""):
+    """Thẻ KPI."""
     st.markdown(f"""
-    <div class="glass-card">
-        <small style="color:#888; font-weight: 500;">{label}</small>
-        <h2 style="margin:5px 0; color:white; font-size: 28px;">{value}</h2>
-        {delta_html}
-    </div>
+        <div class="glass-card">
+            <small style="color: #6c757d; font-weight: 500;">{label}</small>
+            <h2 style="margin: 5px 0; color: {config.COLORS['primary']}; font-size: 28px;">{value}</h2>
+            <p style="color: #adb5bd; margin: 0; font-size: 12px;">{sub_text}</p>
+        </div>
     """, unsafe_allow_html=True)
 
 def styled_fig(fig):
-    """
-    Hàm chuẩn hóa layout cho tất cả biểu đồ Plotly để khớp với giao diện Dark Mode.
-    """
+    """Chuẩn hóa biểu đồ Plotly."""
     fig.update_layout(
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        font_color="white",
-        template="plotly_dark",
-        margin=dict(l=20, r=20, t=40, b=20),
-        hovermode="x unified"
+        font_color=config.COLORS['text'],
+        template="plotly_white",
+        margin=dict(l=10, r=10, t=40, b=10)
     )
-    fig.update_xaxes(showgrid=False, zeroline=False)
-    fig.update_yaxes(showgrid=True, gridcolor='rgba(255,255,255,0.05)')
     return fig
 
-def plot_gauge(value, title, target=0.2):
+def display_cohort_style(df):
     """
-    Vẽ biểu đồ Gauge (Đồng hồ đo) cho các chỉ số như Stickiness (DAU/MAU).
+    Vẽ bảng Cohort 7 ngày.
     """
-    fig = go.Figure(go.Indicator(
-        mode = "gauge+number",
-        value = value,
-        title = {'text': title, 'font': {'size': 18}},
-        number = {'suffix': "%", 'valueformat': ".1%"},
-        gauge = {
-            'axis': {'range': [0, 0.5], 'tickformat': ".0%"},
-            'bar': {'color': config.COLORS['primary']},
-            'bgcolor': "rgba(255,255,255,0.05)",
-            'threshold': {
-                'line': {'color': "red", 'width': 4},
-                'thickness': 0.75,
-                'value': target
-            }
-        }
-    ))
-    return styled_fig(fig)
+    if df.empty:
+        st.warning("Không có dữ liệu để hiển thị bảng Cohort.")
+        return
 
-def plot_cohort_heatmap(matrix):
-    """
-    Vẽ ma trận Cohort Retention linh hoạt theo số lượng cột thực tế.
-    """
-    if matrix.empty:
-        return go.Figure()
+    # Xác định các cột Day 0 đến Day 7 thực tế có trong data
+    days = [i for i in range(8) if i in df.columns]
+    
+    # Thiết lập định dạng: % cho các cột Day, số nguyên cho Total Users
+    format_dict = {day: '{:.1%}' for day in days}
+    format_dict['Total Users'] = '{:,}'
 
-    # 1. Lấy tối đa 8 cột đầu tiên (hoặc ít hơn nếu data chưa đủ 8 ngày)
-    plot_df = matrix.iloc[:, :8]
-    
-    # 2. Đếm số lượng cột thực tế đang có
-    actual_col_count = plot_df.shape[1]
-    
-    # 3. Tạo nhãn tương ứng với số cột thực tế
-    x_labels = [f"Day {i}" for i in range(actual_col_count)]
-    
-    # 4. Vẽ biểu đồ
-    fig = px.imshow(
-        plot_df,
-        text_auto=".1%", # Hiển thị tỷ lệ %
-        color_continuous_scale=[[0, "#161b22"], [1, config.COLORS['primary']]],
-        labels=dict(x="Day Since Install", y="Cohort Date", color="Retention %"),
-        x=x_labels # Sử dụng danh sách nhãn linh hoạt
-    )
-    
-    fig.update_layout(
-        title="User Retention Cohort Heatmap (D0 - Dn)",
-        coloraxis_showscale=False,
-        xaxis_nticks=actual_col_count # Đảm bảo vạch chia khớp với số cột
-    )
-    
-    return styled_fig(fig)
+    # Tạo dải màu gradient
+    styled_df = df.style.background_gradient(
+        cmap='Blues', 
+        subset=days,
+        vmin=0, vmax=0.4
+    ).format(format_dict)
+
+    st.dataframe(styled_df, use_container_width=True)
