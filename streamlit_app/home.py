@@ -42,7 +42,7 @@ with c1:
     st.info("""
     **Tech Stack:**
     - **Language:** Python (Pandas, Numpy)
-    - **Visualization:** Streamlit, Plotly
+    - **Visualization:** Streamlit, Plotly, Tableau
     - **Machine Learning:** Scikit-learn (Joblib for Model Deployment)
     - **Database:** Bigquery, PostgreSQL
     """)
