@@ -1,10 +1,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import config
 
 def draw_metric(label, value, sub_text=""):
-    """Thẻ KPI."""
     st.markdown(f"""
         <div class="glass-card">
             <small style="color: #6c757d; font-weight: 500;">{label}</small>
@@ -14,7 +14,6 @@ def draw_metric(label, value, sub_text=""):
     """, unsafe_allow_html=True)
 
 def styled_fig(fig):
-    """Chuẩn hóa biểu đồ Plotly."""
     fig.update_layout(
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
@@ -24,26 +23,34 @@ def styled_fig(fig):
     )
     return fig
 
-def display_cohort_style(df):
-    """
-    Vẽ bảng Cohort 7 ngày.
-    """
-    if df.empty:
-        st.warning("Không có dữ liệu để hiển thị bảng Cohort.")
-        return
+def plot_gauge(value, title, target=0.25):
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = value,
+        title = {'text': title, 'font': {'size': 18, 'color': config.COLORS['text']}},
+        number = {'suffix': "%", 'valueformat': ".1%", 'font': {'color': config.COLORS['primary']}},
+        gauge = {
+            'axis': {'range': [0, 0.5], 'tickformat': ".0%", 'tickcolor': config.COLORS['secondary']},
+            'bar': {'color': config.COLORS['primary']},
+            'bgcolor': "#f8f9fa",
+            'threshold': {
+                'line': {'color': config.COLORS['danger'], 'width': 4},
+                'thickness': 0.75,
+                'value': target
+            }
+        }
+    ))
+    return styled_fig(fig)
 
-    # Xác định các cột Day 0 đến Day 7 thực tế có trong data
+def display_cohort_style(df):
+    if df.empty: return
     days = [i for i in range(8) if i in df.columns]
-    
-    # Thiết lập định dạng: % cho các cột Day, số nguyên cho Total Users
     format_dict = {day: '{:.1%}' for day in days}
     format_dict['Total Users'] = '{:,}'
 
-    # Tạo dải màu gradient
     styled_df = df.style.background_gradient(
         cmap='Blues', 
         subset=days,
         vmin=0, vmax=0.4
     ).format(format_dict)
-
     st.dataframe(styled_df, use_container_width=True)
