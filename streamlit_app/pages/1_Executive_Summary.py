@@ -44,7 +44,7 @@ if not raw_data['dim_users'].empty:
             daily_rev = data['fact_monetization'].groupby(data['fact_monetization']['timestamp'].dt.date)['amount_usd'].sum().reset_index()
             # Thêm Data Label (text) cho biểu đồ Area
             fig = px.area(daily_rev, x='timestamp', y='amount_usd', text='amount_usd', color_discrete_sequence=[config.COLORS['primary']])
-            fig.update_traces(texttemplate='%{text:.2s}', textposition='top center') # Format số gọn (1.2k)
+            fig.update_traces(texttemplate='{text:.2s}', textposition='top center')
             st.plotly_chart(chart_factory.styled_fig(fig), use_container_width=True)
             
         with r_col:
@@ -58,7 +58,7 @@ if not raw_data['dim_users'].empty:
         
         fig_bar = px.bar(top_5, x='amount_usd', y='country', orientation='h', text='amount_usd', color='amount_usd', color_continuous_scale='Blues')
         fig_bar.update_traces(texttemplate='$%{text:,.0f}', textposition='outside')
-        fig_bar.update_layout(yaxis=dict(autorange="reversed")) # Đảo ngược để Top 1 nằm trên cùng
+        fig_bar.update_layout(yaxis=dict(autorange="reversed"))
         st.plotly_chart(chart_factory.styled_fig(fig_bar), use_container_width=True)
 else:
     st.error("Vui lòng kiểm tra dữ liệu.")
