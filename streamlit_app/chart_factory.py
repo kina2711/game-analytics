@@ -20,7 +20,7 @@ def plot_gauge(value, title, target=0.25):
         title = {'text': title, 'font': {'size': 16, 'color': config.COLORS['text']}},
         number = {'suffix': "", 'valueformat': ".1%", 'font': {'color': config.COLORS['primary']}},
         gauge = {
-            'axis': {'range': [0, 50], 'tickformat': ""},
+            'axis': {'range': [0, 100], 'tickformat': ""},
             'bar': {'color': config.COLORS['primary']},
             'bgcolor': "#f8f9fa",
             'steps': [{'range': [0, 15], 'color': "#fff3f3"}, {'range': [15, 50], 'color': "#f3fff3"}],
