@@ -18,7 +18,7 @@ def plot_gauge(value, title, target=0.25):
         mode = "gauge+number",
         value = value * 100,
         title = {'text': title, 'font': {'size': 16, 'color': config.COLORS['text']}},
-        number = {'suffix': "%", 'valueformat': ".1%", 'font': {'color': config.COLORS['primary']}},
+        number = {'suffix': "%", 'valueformat': ".1", 'font': {'color': config.COLORS['primary']}},
         gauge = {
             'axis': {'range': [0, 50], 'tickformat': ".0%"},
             'bar': {'color': config.COLORS['primary']},
