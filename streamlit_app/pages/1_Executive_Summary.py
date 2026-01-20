@@ -52,7 +52,6 @@ if not raw_data['dim_users'].empty:
             stickiness = (dau / raw_data['dim_users']['user_id'].nunique()) if not raw_data['dim_users'].empty else 0
             st.plotly_chart(chart_factory.plot_gauge(stickiness, "DAU/MAU Ratio", target=0.20), use_container_width=True)
 
-        # Chuyển Top 5 Countries sang Bar Chart có Data Label
         st.subheader("Top 5 Countries by Revenue")
         geo_rev = data['fact_monetization'].merge(data['dim_users'][['user_id', 'country']], on='user_id')
         top_5 = geo_rev.groupby('country')['amount_usd'].sum().sort_values(ascending=False).head(5).reset_index()
