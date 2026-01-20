@@ -47,24 +47,42 @@ def apply_filters(tables, countries, platforms, date_range, versions=None):
     return res
 
 def get_full_cohort_matrix(df_sessions, df_users):
-    """Ma trận Retention 7 ngày."""
+    """
+    Ma trận Retention 7 ngày.
+    """
     if df_sessions.empty or df_users.empty: return pd.DataFrame()
+    
+    # Merge và tính day_diff
     df = pd.merge(df_sessions[['user_id', 'start_time']], df_users[['user_id', 'install_date']], on='user_id')
     df['day_diff'] = (df['start_time'].dt.date - df['install_date'].dt.date).apply(lambda x: x.days)
+    
+    # Chỉ lấy data trong phạm vi 0-7 ngày
     df = df[(df['day_diff'] >= 0) & (df['day_diff'] <= 7)]
     
+    # Tính Cohort Size (Total Users)
     sizes = df_users.groupby('install_date')['user_id'].nunique().reset_index()
     sizes.columns = ['Date', 'Total Users']
     
-    matrix = df.groupby(['install_date', 'day_diff'])['user_id'].nunique().unstack(fill_value=0)
+    # Pivot tạo ma trận số lượng
+    matrix = df.groupby(['install_date', 'day_diff'])['user_id'].nunique().unstack()
+    
+    expected_cols = range(8) # [0, 1, 2, 3, 4, 5, 6, 7]
+    matrix = matrix.reindex(columns=expected_cols, fill_value=0)
+    
+    # Tính tỷ lệ % (Chia cho Day 0 - tức cột 0)
+    # Lưu ý: Nếu Day 0 = 0 (không có user), kết quả sẽ là NaN (đúng logic)
     retention = matrix.divide(matrix[0], axis=0)
     
+    # Join với bảng Size
     res = sizes.set_index('Date').join(retention)
     res.index = res.index.strftime('%d %b')
+
+    res.columns = ['Total Users'] + [f'Day {i}' for i in range(8)]
+    
     return res
 
 def get_funnel_breakdown(df_gameplay):
-    """Tính toán chi tiết cho bảng Funnel Breakdown (Data Cleaning included)."""
+    """Tính toán chi tiết cho bảng Funnel Breakdown."""
     if df_gameplay.empty: return pd.DataFrame()
 
     funnel = df_gameplay[df_gameplay['event_name'] == 'level_complete']\
@@ -72,7 +90,6 @@ def get_funnel_breakdown(df_gameplay):
     funnel.columns = ['Level', 'Users']
     funnel = funnel.sort_values('Level')
 
-    # Logic fix: Đảm bảo số user giảm dần
     for i in range(1, len(funnel)):
         if funnel.iloc[i, 1] > funnel.iloc[i-1, 1]:
             funnel.iloc[i, 1] = funnel.iloc[i-1, 1]
@@ -88,7 +105,7 @@ def get_funnel_breakdown(df_gameplay):
     return funnel[['Step', 'Users', 'Churn Rate', 'Total Completion']]
 
 def predict_churn(is_crash, fps_avg, level_id):
-    """Dự báo Churn bằng AI qua Joblib."""
+    """Dự báo Churn bằng AI."""
     if os.path.exists(MODEL_PATH):
         try:
             model = joblib.load(MODEL_PATH)
