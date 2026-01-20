@@ -103,6 +103,6 @@ def plot_geo_choropleth(df_users):
     )
     
     # 4. Ẩn colorbar (legend), hoặc để lại cho rõ ràng.
-    fig.update_layout(coloraxis_showscale=False)
+    # fig.update_layout(coloraxis_showscale=False)
 
     return styled_fig(fig)
