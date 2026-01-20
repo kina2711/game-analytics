@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
+import matplotlib.colors as mcolors
 import config
 
 def draw_metric(label, value, sub_text=""):
@@ -30,26 +31,62 @@ def plot_gauge(value, title, target=0.25):
     fig.update_layout(height=250, paper_bgcolor='rgba(0,0,0,0)', font_color=config.COLORS['text'])
     return fig
 
-def display_cohort_style(df):
-    if df.empty: return
+def display_cohort_style(df_counts):
+    if df_counts.empty: return
+
+    # Tách cột Total Users và các cột Day
+    day_cols = [c for c in df_counts.columns if 'Day' in c]
     
-    # Xác định các cột Day 0 -> Day 7 để tô màu
-    days_cols = [c for c in df.columns if 'Day' in c]
+    # 1. Tính toán ma trận %
+    # Chia số lượng từng ngày cho Total Users của dòng đó
+    df_pct = df_counts[day_cols].div(df_counts['Total Users'], axis=0)
     
-    format_dict = {col: '{:.1%}' for col in days_cols}
-    format_dict['Total Users'] = '{:,}'
+    # 2. Tạo ma trận text hiển thị (Dạng: "40.5% (123)")
+    df_text = pd.DataFrame(index=df_counts.index, columns=df_counts.columns)
     
-    try:
-        styled_df = df.style.background_gradient(
-            cmap='Blues', 
-            subset=days_cols, 
-            vmin=0, vmax=0.4
-        ).format(format_dict)
+    # Format cột Total Users
+    df_text['Total Users'] = df_counts['Total Users'].apply(lambda x: f"{x:,}")
+    
+    # Format các cột Day
+    for col in day_cols:
+        # Kết hợp % từ df_pct và số lượng từ df_counts
+        # Sử dụng zip để iter qua từng dòng
+        df_text[col] = [f"{p:.1%} ({c})" if c > 0 else "" 
+                        for p, c in zip(df_pct[col], df_counts[col])]
+
+    def style_gradient(data):
+        styles = pd.DataFrame('', index=data.index, columns=data.columns)
+        cmap = mcolors.LinearSegmentedColormap.from_list("custom_blues", ["#ffffff", "#007bff"])
         
-        # use_container_width=True -> Co giãn full màn hình
-        st.dataframe(styled_df, use_container_width=True, height=400)
-    except:
-        st.dataframe(df.style.format(format_dict), use_container_width=True)
+        for col in day_cols:
+            # Lấy max value để normalize
+            # Lấy cố định max=0.5 (50%) để màu đậm rõ hơn với retention thấp
+            vmax = 0.5 
+            
+            for idx in data.index:
+                val = df_pct.loc[idx, col] # Lấy giá trị % thực tế
+                if pd.isna(val) or val == 0:
+                    bg_color = "#ffffff"
+                    text_color = "#000000"
+                else:
+                    # Normalize value 0 -> 1 cho colormap
+                    norm_val = min(val / vmax, 1.0)
+                    rgba = cmap(norm_val)
+                    bg_color = mcolors.to_hex(rgba)
+                    
+                    # Chỉnh màu chữ trắng nếu nền quá đậm
+                    text_color = "#ffffff" if norm_val > 0.6 else "#000000"
+                
+                styles.loc[idx, col] = f'background-color: {bg_color}; color: {text_color}'
+        
+        return styles
+
+    # 4. Render
+    st.dataframe(
+        df_text.style.apply(style_gradient, axis=None),
+        use_container_width=True,
+        height=500
+    )
 
 def display_funnel_table(df):
     st.dataframe(
