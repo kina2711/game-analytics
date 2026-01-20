@@ -44,13 +44,13 @@ if not raw_data['dim_users'].empty:
             daily_rev = data['fact_monetization'].groupby(data['fact_monetization']['timestamp'].dt.date)['amount_usd'].sum().reset_index()
             # Thêm Data Label (text) cho biểu đồ Area
             fig = px.area(daily_rev, x='timestamp', y='amount_usd', text='amount_usd', color_discrete_sequence=[config.COLORS['primary']])
-            fig.update_traces(texttemplate='{text:.2s}', textposition='top center')
+            fig.update_traces(texttemplate='%{text:.2s}', textposition='top center')
             st.plotly_chart(chart_factory.styled_fig(fig), use_container_width=True)
             
         with r_col:
             st.subheader("User Stickiness")
             stickiness = (dau / raw_data['dim_users']['user_id'].nunique()) if not raw_data['dim_users'].empty else 0
-            st.plotly_chart(chart_factory.plot_gauge(stickiness, "DAU/MAU Ratio", target=0.20), use_container_width=True)
+            st.plotly_chart(chart_factory.plot_gauge(stickiness, "DAU/MAU Ratio", target=0.7), use_container_width=True)
 
         st.subheader("Top 5 Countries by Revenue")
         geo_rev = data['fact_monetization'].merge(data['dim_users'][['user_id', 'country']], on='user_id')
