@@ -49,7 +49,7 @@ if not raw_data['dim_users'].empty:
             
         with r_col:
             st.subheader("User Stickiness")
-            stickiness = (dau / raw_data['dim_users']['user_id'].nunique()) if not raw_data['dim_users'].empty else 0
+            stickiness = (dau / 100 / raw_data['dim_users']['user_id'].nunique()) if not raw_data['dim_users'].empty else 0
             st.plotly_chart(chart_factory.plot_gauge(stickiness, "DAU/MAU Ratio", target=0.7), use_container_width=True)
 
         st.subheader("Top 5 Countries by Revenue")
