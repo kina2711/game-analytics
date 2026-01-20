@@ -59,6 +59,22 @@ def get_full_cohort_matrix(df_sessions, df_users):
     res.index = res.index.strftime('%d %b')
     return res
 
+def get_funnel_data(df_gameplay):
+    if df_gameplay.empty: return pd.DataFrame()
+    
+    # Đếm unique users hoàn thành mỗi level
+    funnel = df_gameplay[df_gameplay['event_name'] == 'level_complete']\
+            .groupby('level_id')['user_id'].nunique().reset_index()
+    
+    # Sắp xếp theo Level
+    funnel = funnel.sort_values('level_id')
+    
+    for i in range(1, len(funnel)):
+        if funnel.iloc[i, 1] > funnel.iloc[i-1, 1]:
+            funnel.iloc[i, 1] = funnel.iloc[i-1, 1]
+            
+    return funnel
+    
 def predict_churn(is_crash, fps_avg, level_id):
     if os.path.exists(MODEL_PATH):
         try:
